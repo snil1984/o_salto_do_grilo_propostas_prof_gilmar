@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>O Salto do Grilo - Prof. Gilmar Macedo Brito</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Fontes Google -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Caveat:wght@700&display=swap" rel="stylesheet">
+    <!-- FontAwesome para Ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Fredoka', sans-serif;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .handwritten {
+            font-family: 'Caveat', cursive;
+        }
+        @keyframes bounce-subtle {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+        .animate-bounce-subtle {
+            animation: bounce-subtle 1.5s infinite ease-in-out;
+        }
+        .stamp-approved {
+            transform: rotate(-5deg);
+            border: 3px dashed #15803d;
+            color: #15803d;
+            box-shadow: 0 0 0 4px rgba(21, 128, 61, 0.15);
+        }
+        .stamp-pending {
+            transform: rotate(-5deg);
+            border: 3px dashed #b45309;
+            color: #b45309;
+            box-shadow: 0 0 0 4px rgba(180, 83, 9, 0.15);
+        }
+        /* Scrollbar suave para a lista de metas no modal */
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #fef3c7;
+            border-radius: 8px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #d97706;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center justify-center p-2 sm:p-4 overflow-x-hidden">
+
+    <!-- Container Principal do Jogo -->
+    <div class="relative w-full max-w-5xl bg-slate-800 rounded-3xl shadow-2xl border-4 border-emerald-500/30 overflow-hidden flex flex-col items-center">
+        
+        <!-- Top Bar / HUD -->
+        <div class="w-full bg-slate-950/85 px-4 py-3 flex flex-wrap items-center justify-between border-b border-slate-700/50 backdrop-blur-md gap-2">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl sm:text-3xl" id="hudThemeIcon">🎓</span>
+                <div>
+                    <h1 class="text-base sm:text-lg font-bold bg-gradient-to-r from-emerald-400 to-green-300 bg-clip-text text-transparent flex items-center gap-2">
+                        <span>O Salto do Grilo, ajude o Professor Gilmar a ser o seu Diretor</span>
+                    </h1>
+                    <p class="text-xs text-amber-400 font-semibold" id="hudThemeName">Fase: 5. Estudantes & Vida Acadêmica</p>
+                </div>
+            </div>
+
+            <!-- HUD Stats -->
+            <div class="flex items-center gap-3 text-xs sm:text-sm">
+                <div class="bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-700 flex items-center gap-1.5">
+                    <i class="fa-solid fa-flag-checkered text-sky-400"></i>
+                    <span class="text-slate-400 text-xs">Progresso:</span>
+                    <span id="progressText" class="font-bold text-sky-300">0/120m</span>
+                </div>
+                <div class="bg-emerald-950/60 px-3 py-1.5 rounded-xl border border-emerald-500/40 flex items-center gap-1.5">
+                    <i class="fa-solid fa-star text-emerald-400"></i>
+                    <span class="text-emerald-300 text-xs">Pontos:</span>
+                    <span id="scoreText" class="font-bold text-emerald-300">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Área de Visualização / Canvas -->
+        <div class="relative w-full aspect-[16/9] max-h-[70vh] bg-sky-300 overflow-hidden cursor-pointer" id="gameArea">
+            <canvas id="gameCanvas" class="w-full h-full block"></canvas>
+
+            <!-- Overlay de Início e Seleção de Fases -->
+            <div id="startOverlay" class="absolute inset-0 bg-slate-950/92 backdrop-blur-md flex flex-col items-center justify-center p-3 sm:p-5 text-center z-10 transition-opacity duration-300">
+                <div class="bg-emerald-500/10 p-2.5 rounded-full mb-2 border border-emerald-500/30 animate-bounce-subtle">
+                    <span class="text-4xl sm:text-5xl">🦗</span>
+                </div>
+                <h2 class="text-xl sm:text-3xl font-extrabold text-white mb-1">O Salto do Grilo: Propostas em Ação!</h2>
+                <p class="text-slate-300 text-xs sm:text-sm max-w-xl mb-3">
+                    Conquiste as propostas da gestão do <strong>Prof. Gilmar Macedo Brito</strong> saltando os obstáculos de cada área!
+                </p>
+
+                <!-- Seleção de Fases Temáticas (9 Fases) -->
+                <div class="w-full max-w-2xl grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4 overflow-y-auto max-h-[42vh] p-1 custom-scroll" id="themeSelectorContainer">
+                    <!-- Gerado Dinamicamente -->
+                </div>
+
+                <div class="flex flex-wrap items-center justify-center gap-3">
+                    <button id="btnStart" class="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-slate-950 font-extrabold px-8 py-2.5 rounded-2xl shadow-lg shadow-emerald-500/30 transition transform hover:scale-105 active:scale-95 flex items-center gap-2 text-sm sm:text-base">
+                        <i class="fa-solid fa-play"></i> Iniciar Fase Selecionada
+                    </button>
+                </div>
+
+                <div class="mt-3 text-[11px] text-slate-400 flex items-center gap-3">
+                    <span><kbd class="px-2 py-0.5 bg-slate-800 rounded border border-slate-700 text-slate-200">ESPAÇO</kbd> / <kbd class="px-2 py-0.5 bg-slate-800 rounded border border-slate-700 text-slate-200">SETAS</kbd> para Pular</span>
+                    <span>•</span>
+                    <span>Toque na Tela (Mobile)</span>
+                </div>
+            </div>
+
+            <!-- Dica de Pulo Mobile -->
+            <div id="mobileJumpHint" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white/90 text-xs px-3 py-1.5 rounded-full pointer-events-none opacity-0 transition-opacity duration-300 flex items-center gap-2">
+                <i class="fa-solid fa-hand-pointer animate-bounce"></i> Toque para Pular
+            </div>
+        </div>
+
+        <!-- Controles Inferiores / Ações -->
+        <div class="w-full bg-slate-900 p-3 border-t border-slate-700/60 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm">
+            <button id="btnOpenMenuOverlay" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3.5 py-1.5 rounded-xl border border-slate-600 transition flex items-center gap-2">
+                <i class="fa-solid fa-list-check text-emerald-400"></i> Escolher Outro Tópico
+            </button>
+
+            <button id="btnOpenProposalDirect" class="text-emerald-400 hover:text-emerald-300 underline font-semibold flex items-center gap-1.5">
+                <i class="fa-solid fa-file-signature"></i> Ver Proposta Completa da Fase
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL DA PROPOSTA DO PROFESSOR GILMAR MACEDO BRITO -->
+    <div id="proposalModal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 overflow-y-auto hidden">
+        
+        <div class="relative w-full max-w-3xl bg-amber-50 text-slate-800 rounded-2xl shadow-2xl border-4 sm:border-8 border-amber-800/40 p-4 sm:p-6 my-auto transition-all">
+            
+            <!-- Botão Fechar Modal -->
+            <button id="btnCloseModal" class="absolute top-3 right-3 text-amber-900 hover:text-amber-700 w-8 h-8 rounded-full bg-amber-200/70 flex items-center justify-center transition">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <!-- Cabeçalho Dinâmico da Proposta -->
+            <div class="border-b-2 border-amber-900/20 pb-3 mb-4 text-center">
+                <div class="flex items-center justify-center gap-2 mb-1">
+                    <span class="text-2xl sm:text-3xl" id="proposalHeaderIcon">🎓</span>
+                    <h3 class="text-lg sm:text-xl font-extrabold uppercase tracking-wider text-amber-950" id="proposalTitle">
+                        5. ESTUDANTES, ASSISTÊNCIA E VIDA ACADÊMICA
+                    </h3>
+                </div>
+                <p class="text-xs sm:text-sm font-serif italic text-amber-900 max-w-xl mx-auto" id="proposalSubtitle">
+                    "O estudante deve ser tratado de forma integral. A permanência e o êxito dependem tanto do processo pedagógico quanto das condições sociais, econômicas, culturais e de convivência."
+                </p>
+                <div class="inline-block mt-2 bg-emerald-200/80 border border-emerald-500/40 px-3 py-0.5 rounded-full text-[11px] font-bold text-emerald-950 uppercase tracking-widest" id="proposalStatusBadge">
+                    Plano Oficial de Gestão
+                </div>
+            </div>
+
+            <!-- Conteúdo Principal: Metas + Foto do Prof. Gilmar ao Lado -->
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-start">
+                
+                <!-- Coluna de Metas Conquistadas (Esquerda) -->
+                <div class="sm:col-span-8 space-y-3">
+                    <div class="bg-amber-100/90 p-3 rounded-xl border border-amber-300/80">
+                        <div class="font-bold text-amber-900 text-xs uppercase tracking-wider flex items-center gap-1.5 mb-2 border-b border-amber-900/10 pb-1.5">
+                            <i class="fa-solid fa-list-check text-emerald-700"></i> Metas & Compromissos da Gestão:
+                        </div>
+                        <div class="max-h-[220px] overflow-y-auto pr-1 custom-scroll">
+                            <ul class="space-y-1.5 text-xs text-amber-950 font-medium" id="proposalCommitmentsList">
+                                <!-- Inserido dinamicamente -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coluna da Foto Oficial do Prof. Gilmar (Direita) -->
+                <div class="sm:col-span-4 flex flex-col items-center text-center space-y-2">
+                    <div class="relative w-36 h-44 sm:w-40 sm:h-48 bg-gradient-to-b from-amber-200 to-amber-100 border-4 border-amber-700/60 rounded-2xl shadow-md p-1.5 flex flex-col items-center justify-between overflow-hidden">
+                        
+                        <!-- Foto do Professor Gilmar (Imbutida / Placeholder editável via SVG/URL) -->
+                        <div class="w-full h-full rounded-xl overflow-hidden relative bg-emerald-900/10 border border-amber-600/30 flex flex-col items-center justify-center">
+                            <img id="profGilmarPhoto" src="gilmar_7.png" alt="Prof. Gilmar Macedo Brito" class="w-full h-full object-cover">
+                        </div>
+
+                        <div class="absolute bottom-1 inset-x-1 bg-amber-950/85 text-amber-100 text-[10px] py-1 font-bold rounded-b-lg backdrop-blur-sm">
+                            Direção Geral <br> Campus Humaitá
+                        </div>
+                    </div>
+
+                    <div class="text-[11px] font-bold text-amber-900">
+                       Vote, Professor Gilmar
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rodapé com Assinatura Oficial Fixa -->
+            <div class="mt-4 pt-3 border-t border-amber-900/20 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div class="stamp-approved px-3 py-1 rounded-lg text-center font-black uppercase text-xs tracking-widest" id="proposalStamp">
+                    PROPOSTA REGISTRADA
+                </div>
+
+                <div class="text-center sm:text-right">
+                    <p class="handwritten text-2xl sm:text-3xl text-amber-950 font-bold leading-none mb-0.5" id="signatureText">Prof. Gilmar Macedo Brito</p>
+                    <p class="text-[10px] uppercase font-bold text-amber-800/80 tracking-wider">Assinatura do Proponente • IFAM Campus Humaitá</p>
+                </div>
+            </div>
+
+            <!-- Botões de Ação do Modal -->
+            <div class="mt-4 flex flex-col sm:flex-row gap-2 justify-end">
+                <button id="btnNextLevel" class="bg-amber-800 hover:bg-amber-900 text-amber-50 font-bold px-5 py-2 rounded-xl shadow transition text-xs sm:text-sm flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-forward"></i> Próxima Fase
+                </button>
+                <button id="btnPlayAgain" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2 rounded-xl shadow transition text-xs sm:text-sm flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-rotate-right"></i> Tentar Novamente
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CÓDIGO COMPLETO DO JOGO EM JAVASCRIPT -->
+    <script>
+        // --- ESTRUTURA COMPLETA DAS 9 FASES TEMÁTICAS (DOC WORD) ---
+        const THEMES = {
+            t5: {
+                id: 't5',
+                name: '1. Estudantes, Assistência e Vida Acadêmica',
+                icon: '🎓',
+                skyColor: ['#0284c7', '#7dd3fc', '#f0f9ff'],
+                groundColor: '#16a34a',
+                dirtColor: '#854d0e',
+                targetDistance: 120,
+                quote: "O estudante deve ser tratado de forma integral. A permanência e o êxito dependem tanto do processo pedagógico quanto das condições sociais, econômicas, culturais e de convivência.",
+                commitments: [
+                    "Melhorar a comunicação sobre programas e auxílios.",
+                    "Aperfeiçoar o acompanhamento da trajetória acadêmica.",
+                    "Fortalecer ações culturais e esportivas.",
+                    "Revitalizar espaços de convivência.",
+                    "Criar calendário acadêmico-cultural integrado.",
+                    "Apoiar iniciativas estudantis e projetos de protagonismo.",
+                    "Criação do Grêmio Estudantil com eleições organizadas pelos próprios discentes.",
+                    "Incentivar e fomentar as atividades de integração (jogos, atividades culturais e acadêmicas).",
+                    "Realizar periodicamente reuniões entre a direção e alunos para fortalecimento da comunicação em ações que envolvam os estudantes.",
+                    "Lutar pela garantia da manutenção e ampliação dos programas de Assistência Estudantil, dentro das diretrizes do Programa Nacional de Assistência Estudantil (PNAES).",
+                    "Apoiar a promoção de eventos solidários.",
+                    "Promover e ampliar parcerias com empresas, movimentos sociais, instituições públicas, privadas e associações de classes para estágios e inserção no trabalho.",
+                    "Criação do Voucher Digital facilitando o acesso ao refeitório, evitando filas.",
+                    "Estudo de viabilidade com o Grêmio para criação de espaço de interação com Wi-Fi.",
+                    "Melhoria no transporte escolar, visando minimizar o número de rotas e aumentar o conforto.",
+                    "Inclusão e Acessibilidade: Diagnóstico de barreiras, tecnologias assistivas e capacitação de servidores."
+                ],
+                obstacles: ['book', 'bus', 'ticket']
+            },
+            t6: {
+                id: 't6',
+                name: '2. Pesquisa, Pós-Graduação e Inovação',
+                icon: '🔬',
+                skyColor: ['#4338ca', '#a5b4fc', '#e0e7ff'],
+                groundColor: '#2563eb',
+                dirtColor: '#1e3a8a',
+                targetDistance: 140,
+                quote: "A pesquisa deve ser estimulada como parte da formação dos estudantes e como instrumento de produção de soluções para problemas científicos, tecnológicos e sociais.",
+                commitments: [
+                    "Fortalecer iniciação científica e tecnológica e apoiar grupos de pesquisa.",
+                    "Estimular publicação, participação em eventos e ampliar participação em editais.",
+                    "Apoiar a consolidação da pós-graduação e projetos multidisciplinares.",
+                    "Programa de Inovação: Laboratórios, automação, tecnologia e inteligência artificial responsável.",
+                    "Criação do Comitê de Captação de Recursos para projetos institucionais.",
+                    "Estabelecer cultura de divulgação científica com seminários, colóquios e palestras.",
+                    "Incentivar a criação no campus de um Núcleo de Inovação e Tecnologia (NIT).",
+                    "Fomentar a participação de servidores e discentes em eventos acadêmicos científicos externos."
+                ],
+                obstacles: ['computer', 'stamp', 'folder']
+            },
+            t7: {
+                id: 't7',
+                name: '3. Extensão e Desenvolvimento Regional',
+                icon: '🌍',
+                skyColor: ['#0d9488', '#5eead4', '#f0fdf4'],
+                groundColor: '#059669',
+                dirtColor: '#064e3b',
+                targetDistance: 160,
+                quote: "A extensão deve ampliar a presença da instituição no território e criar relações duradouras com comunidades, escolas, municípios e organizações.",
+                commitments: [
+                    "Programas de extensão de longa duração e formação para a comunidade.",
+                    "Inclusão digital, projetos ambientais, culturais e sociais.",
+                    "Fortalecer as ações do NEABI e apoio ao NAPNE para cultura de inclusão.",
+                    "Criação do projeto IFAM na Comunidade e Projeto Pré-Enem comunitário.",
+                    "Mostra anual dos projetos integradores e incentivo a cursos de Formação Inicial e Continuada (FIC).",
+                    "Motivar a Incubadora do campus e parcerias com prefeituras e instituições.",
+                    "Promover interclasses e gincanas esportivas com outras escolas."
+                ],
+                obstacles: ['tree', 'helmet', 'cone']
+            },
+            t8: {
+                id: 't8',
+                name: '4. Valorização e Desenvolvimento dos Servidores',
+                icon: '🤝',
+                skyColor: ['#b45309', '#fde68a', '#fffbeb'],
+                groundColor: '#d97706',
+                dirtColor: '#78350f',
+                targetDistance: 180,
+                quote: "A valorização das pessoas deve combinar condições de trabalho, participação, capacitação e reconhecimento das competências na instituição.",
+                commitments: [
+                    "Plano anual de capacitação baseado em necessidades e formação de gestores.",
+                    "Programa de Promoção à Saúde do Servidor (técnicos, docentes e terceirizados).",
+                    "Combater energicamente todo tipo de assédio no ambiente acadêmico.",
+                    "Criar condições para afastamento para formação e incentivo a simpósios/congressos.",
+                    "Acompanhar os estudos sobre a jornada de 30 horas dos técnico-administrativos.",
+                    "Respeitar a autonomia dos setores mantendo presença nas necessidades."
+                ],
+                obstacles: ['folder', 'stamp', 'computer']
+            },
+            t9: {
+                id: 't9',
+                name: '5. Comunicação Institucional',
+                icon: '📢',
+                skyColor: ['#c026d3', '#f5d0fe', '#fdf4ff'],
+                groundColor: '#9333ea',
+                dirtColor: '#581c87',
+                targetDistance: 200,
+                quote: "Uma política de comunicação organizada deve facilitar o acesso à informação e reduzir ruídos entre gestão, servidores, estudantes e sociedade.",
+                commitments: [
+                    "Criar e manter um calendário institucional integrado.",
+                    "Publicação periódica de boletins de gestão transparente.",
+                    "Organização e modernização dos canais oficiais do campus.",
+                    "Divulgação clara de editais, oportunidades e resultados de decisões.",
+                    "Aprimoramento contínuo da comunicação interna entre os setores."
+                ],
+                obstacles: ['ticket', 'pencil', 'computer']
+            },
+            t10: {
+                id: 't10',
+                name: '6. Transformação Digital e Gestão por Dados',
+                icon: '💻',
+                skyColor: ['#0284c7', '#38bdf8', '#f0f9ff'],
+                groundColor: '#2563eb',
+                dirtColor: '#1e3a8a',
+                targetDistance: 220,
+                quote: "A transformação digital deve simplificar o trabalho, melhorar os serviços e ampliar a capacidade de planejamento.",
+                commitments: [
+                    "Programa Campus Digital: Digitalização e simplificação de processos.",
+                    "Integração dos sistemas institucionais e ampliação dos serviços aos alunos.",
+                    "Modernização da infraestrutura de TI e conectividade via fibra em todos os pavilhões.",
+                    "Aquisição de Link redundante de internet para estabilidade total.",
+                    "Automação de atividades repetitivas e capacitação de usuários."
+                ],
+                obstacles: ['computer', 'ticket', 'pencil']
+            },
+            t11: {
+                id: 't11',
+                name: '7. Infraestrutura, Manutenção e Acessibilidade',
+                icon: '🏗️',
+                skyColor: ['#ea580c', '#ffedd5', '#fff7ed'],
+                groundColor: '#ca8a04',
+                dirtColor: '#713f12',
+                targetDistance: 240,
+                quote: "Garantir a manutenção preventiva, modernização e acessibilidade para que o campus acolha com dignidade toda a comunidade.",
+                commitments: [
+                    "Diagnóstico físico e tecnológico contínuo das unidades.",
+                    "Plano estruturado de manutenção preventiva em prédios e salas.",
+                    "Modernização de laboratórios e atualização de equipamentos.",
+                    "Adequações de acessibilidade física e comunicação visual.",
+                    "Captar recursos para construção do Ginásio e revitalização do campo de futebol."
+                ],
+                obstacles: ['helmet', 'cone', 'ruler']
+            },
+            t12: {
+                id: 't12',
+                name: '8. Sustentabilidade e Responsabilidade Ambiental',
+                icon: '🌱',
+                skyColor: ['#16a34a', '#bbf7d0', '#f0fdf4'],
+                groundColor: '#15803d',
+                dirtColor: '#14532d',
+                targetDistance: 260,
+                quote: "Promover o uso racional de recursos e implementar práticas ambientais sustentáveis dentro e fora do campus.",
+                commitments: [
+                    "Programas de redução do consumo de energia e água.",
+                    "Gestão adequada de resíduos e implementação de Coleta Seletiva.",
+                    "Projetos de educação ambiental e arborização do campus.",
+                    "Avaliação e implantação de soluções em energia renovável."
+                ],
+                obstacles: ['tree', 'medicine', 'firstaid']
+            },
+            t13: {
+                id: 't13',
+                name: '9. Gestão Administrativa e Financeira',
+                icon: '📊',
+                skyColor: ['#475569', '#cbd5e1', '#f8fafc'],
+                groundColor: '#334155',
+                dirtColor: '#0f172a',
+                targetDistance: 280,
+                quote: "A gestão dos recursos deve estar vinculada às prioridades institucionais e acompanhada por informações claras e transparentes.",
+                commitments: [
+                    "Planejamento anual de prioridades com acompanhamento da execução orçamentária.",
+                    "Planejamento eficiente de compras, contratações e acompanhamento de contratos.",
+                    "Mapeamento de processos e redução de etapas burocráticas desnecessárias.",
+                    "Total transparência na aplicação dos recursos públicos no campus."
+                ],
+                obstacles: ['stamp', 'folder', 'computer']
+            }
+        };
+
+        let currentThemeKey = 't5';
+
+        // --- SISTEMA DE ÁUDIO SINTETIZADO (Web Audio API) ---
+        class SoundFX {
+            constructor() { this.ctx = null; }
+            init() {
+                if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            playJump() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(160, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(480, this.ctx.currentTime + 0.14);
+                gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.14);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(this.ctx.currentTime + 0.14);
+            }
+            playCoin() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(580, this.ctx.currentTime);
+                osc.frequency.setValueAtTime(880, this.ctx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.18);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(this.ctx.currentTime + 0.18);
+            }
+            playHit() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(200, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.25);
+                gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(this.ctx.currentTime + 0.25);
+            }
+            playWin() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.setValueAtTime(554.37, now + 0.1);
+                osc.frequency.setValueAtTime(659.25, now + 0.2);
+                osc.frequency.setValueAtTime(880, now + 0.3);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(now + 0.5);
+            }
+        }
+        const sounds = new SoundFX();
+
+        // --- SETUP CANVAS & ESTADO DO JOGO ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameArea = document.getElementById('gameArea');
+
+        const GAME_WIDTH = 800;
+        const GAME_HEIGHT = 450;
+        canvas.width = GAME_WIDTH;
+        canvas.height = GAME_HEIGHT;
+
+        let isRunning = false;
+        let score = 0;
+        let distanceMeters = 0;
+        let speed = 7.0;
+        let frameCount = 0;
+        let animationFrameId = null;
+
+        // --- GRILO PROTAGONISTA ---
+        const cricket = {
+            x: 90, y: 300, width: 44, height: 38,
+            vy: 0, gravity: 0.85, jumpForce: -13.5, groundY: 340,
+            isGrounded: false, legAngle: 0,
+            
+            reset() {
+                this.y = this.groundY - this.height;
+                this.vy = 0;
+                this.isGrounded = true;
+            },
+            jump() {
+                if (this.isGrounded) {
+                    this.vy = this.jumpForce;
+                    this.isGrounded = false;
+                    sounds.playJump();
+                }
+            },
+            update() {
+                this.vy += this.gravity;
+                this.y += this.vy;
+                if (this.y >= this.groundY - this.height) {
+                    this.y = this.groundY - this.height;
+                    this.vy = 0;
+                    this.isGrounded = true;
+                }
+                this.legAngle = this.isGrounded ? Math.sin(frameCount * 0.25) * 0.4 : -0.6;
+            },
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // Antenas
+                ctx.strokeStyle = '#15803d';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(32, 10); ctx.quadraticCurveTo(42, -5, 48, -12);
+                ctx.moveTo(30, 8); ctx.quadraticCurveTo(38, -8, 42, -15);
+                ctx.stroke();
+
+                // Pernas
+                ctx.strokeStyle = '#14532d';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(10, 24);
+                ctx.lineTo(2 - Math.cos(this.legAngle)*10, 10);
+                ctx.lineTo(8 - Math.cos(this.legAngle)*12, 36);
+                ctx.stroke();
+
+                // Corpo
+                ctx.fillStyle = '#22c55e';
+                ctx.beginPath();
+                ctx.ellipse(22, 22, 18, 12, 0, 0, Math.PI * 2);
+                ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = '#15803d'; ctx.stroke();
+
+                // Cabeça
+                ctx.fillStyle = '#4ade80';
+                ctx.beginPath(); ctx.arc(32, 14, 10, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+                // Olho
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath(); ctx.arc(35, 12, 4, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#0f172a';
+                ctx.beginPath(); ctx.arc(36.5, 12, 2, 0, Math.PI * 2); ctx.fill();
+
+                // Sorriso
+                ctx.beginPath(); ctx.arc(34, 17, 3, 0.1, Math.PI * 0.8);
+                ctx.strokeStyle = '#14532d'; ctx.lineWidth = 1.5; ctx.stroke();
+
+                // Asa
+                ctx.fillStyle = '#86efac';
+                ctx.beginPath(); ctx.ellipse(18, 18, 12, 6, -0.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+                ctx.restore();
+            }
+        };
+
+        // --- OBSTÁCULOS E COLETÁVEIS ---
+        let obstacles = [];
+        let collectibles = [];
+
+        class Obstacle {
+            constructor(themeKey) {
+                this.x = GAME_WIDTH + 30;
+                const theme = THEMES[themeKey];
+                const typeList = theme.obstacles;
+                this.type = typeList[Math.floor(Math.random() * typeList.length)];
+                
+                this.width = 32;
+                this.height = 36;
+                this.y = cricket.groundY - this.height;
+            }
+
+            update() { this.x -= speed; }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                switch(this.type) {
+                    case 'book':
+                        ctx.fillStyle = '#ef4444'; ctx.fillRect(2, 16, 28, 10);
+                        ctx.fillStyle = '#3b82f6'; ctx.fillRect(0, 26, 32, 10);
+                        ctx.fillStyle = '#fef08a'; ctx.fillRect(4, 18, 24, 2);
+                        break;
+                    case 'pencil':
+                        ctx.fillStyle = '#f59e0b'; ctx.fillRect(8, 6, 16, 30);
+                        ctx.fillStyle = '#fca5a5'; ctx.fillRect(8, 0, 16, 6);
+                        ctx.fillStyle = '#cbd5e1'; ctx.beginPath(); ctx.moveTo(8,36); ctx.lineTo(16,44); ctx.lineTo(24,36); ctx.fill();
+                        break;
+                    case 'ruler':
+                        ctx.fillStyle = '#eab308'; ctx.fillRect(6, 0, 20, 36);
+                        ctx.fillStyle = '#78350f';
+                        for(let i=4; i<32; i+=6) ctx.fillRect(6, i, 6, 2);
+                        break;
+                    case 'bus':
+                        ctx.fillStyle = '#f59e0b'; ctx.fillRect(0, 8, 32, 22);
+                        ctx.fillStyle = '#1e293b'; ctx.fillRect(4, 12, 6, 6); ctx.fillRect(13, 12, 6, 6); ctx.fillRect(22, 12, 6, 6);
+                        ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(7, 30, 4, 0, Math.PI*2); ctx.arc(25, 30, 4, 0, Math.PI*2); ctx.fill();
+                        break;
+                    case 'ticket':
+                        ctx.fillStyle = '#10b981'; ctx.fillRect(2, 10, 28, 18);
+                        ctx.fillStyle = '#ffffff'; ctx.fillRect(6, 14, 8, 10);
+                        ctx.fillStyle = '#047857'; ctx.fillRect(16, 14, 10, 3); ctx.fillRect(16, 19, 7, 3);
+                        break;
+                    case 'folder':
+                        ctx.fillStyle = '#f59e0b'; ctx.fillRect(0, 8, 32, 28);
+                        ctx.fillStyle = '#d97706'; ctx.fillRect(0, 4, 14, 6);
+                        ctx.fillStyle = '#ffffff'; ctx.fillRect(6, 14, 20, 14);
+                        break;
+                    case 'stamp':
+                        ctx.fillStyle = '#dc2626'; ctx.fillRect(4, 24, 24, 12);
+                        ctx.fillStyle = '#78350f'; ctx.fillRect(12, 6, 8, 18);
+                        ctx.beginPath(); ctx.arc(16, 6, 8, 0, Math.PI*2); ctx.fill();
+                        break;
+                    case 'computer':
+                        ctx.fillStyle = '#475569'; ctx.fillRect(2, 0, 28, 22);
+                        ctx.fillStyle = '#0284c7'; ctx.fillRect(5, 3, 22, 16);
+                        ctx.fillStyle = '#334155'; ctx.fillRect(12, 22, 8, 8); ctx.fillRect(6, 30, 20, 6);
+                        break;
+                    case 'medicine':
+                        ctx.fillStyle = '#ffffff'; ctx.fillRect(4, 8, 24, 28);
+                        ctx.fillStyle = '#ef4444'; ctx.fillRect(2, 2, 28, 8);
+                        ctx.fillStyle = '#3b82f6'; ctx.fillRect(13, 16, 6, 12); ctx.fillRect(10, 19, 12, 6);
+                        break;
+                    case 'firstaid':
+                        ctx.fillStyle = '#dc2626'; ctx.fillRect(0, 10, 32, 26);
+                        ctx.fillStyle = '#ffffff'; ctx.fillRect(13, 16, 6, 14); ctx.fillRect(9, 20, 14, 6);
+                        ctx.strokeStyle = '#991b1b'; ctx.lineWidth = 3; ctx.strokeRect(10, 4, 12, 6);
+                        break;
+                    case 'cone':
+                        ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.moveTo(16,0); ctx.lineTo(2,36); ctx.lineTo(30,36); ctx.fill();
+                        ctx.fillStyle = '#ffffff'; ctx.fillRect(8, 14, 16, 6);
+                        break;
+                    case 'tree':
+                        ctx.fillStyle = '#78350f'; ctx.fillRect(12, 18, 8, 18);
+                        ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(16, 12, 14, 0, Math.PI*2); ctx.fill();
+                        break;
+                    case 'helmet':
+                        ctx.fillStyle = '#eab308'; ctx.beginPath(); ctx.arc(16, 20, 15, Math.PI, 0); ctx.fill();
+                        ctx.fillRect(0, 20, 32, 5);
+                        break;
+                }
+
+                ctx.restore();
+            }
+        }
+
+        class Collectible {
+            constructor() {
+                this.x = GAME_WIDTH + 30;
+                this.y = cricket.groundY - 50 - Math.random() * 70;
+                this.width = 22;
+                this.height = 22;
+                this.collected = false;
+                this.floatOffset = Math.random() * Math.PI * 2;
+            }
+            update() { this.x -= speed; this.floatOffset += 0.08; }
+            draw(ctx) {
+                if (this.collected) return;
+                const currentY = this.y + Math.sin(this.floatOffset) * 5;
+                ctx.save();
+                ctx.translate(this.x + 11, currentY + 11);
+                ctx.fillStyle = '#eab308';
+                ctx.beginPath(); ctx.ellipse(0, 0, 10, 7, Math.PI / 4, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#ca8a04'; ctx.lineWidth = 1.5; ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        // --- BACKGROUND DINÂMICO ---
+        const background = {
+            clouds: [{ x: 50, y: 50, size: 40 }, { x: 350, y: 70, size: 55 }, { x: 650, y: 45, size: 45 }],
+            update() {
+                this.clouds.forEach(c => {
+                    c.x -= speed * 0.2;
+                    if (c.x + c.size * 2 < 0) c.x = GAME_WIDTH + c.size;
+                });
+            },
+            draw(ctx) {
+                const theme = THEMES[currentThemeKey];
+                
+                // Gradiente do Céu
+                const skyGrad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+                skyGrad.addColorStop(0, theme.skyColor[0]);
+                skyGrad.addColorStop(0.6, theme.skyColor[1]);
+                skyGrad.addColorStop(1, theme.skyColor[2]);
+                ctx.fillStyle = skyGrad;
+                ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+                // Nuvens
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+                this.clouds.forEach(c => {
+                    ctx.beginPath();
+                    ctx.arc(c.x, c.y, c.size * 0.5, 0, Math.PI * 2);
+                    ctx.arc(c.x + c.size * 0.35, c.y - c.size * 0.2, c.size * 0.4, 0, Math.PI * 2);
+                    ctx.arc(c.x + c.size * 0.7, c.y, c.size * 0.45, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                // Chão Principal
+                ctx.fillStyle = theme.groundColor;
+                ctx.fillRect(0, cricket.groundY, GAME_WIDTH, GAME_HEIGHT - cricket.groundY);
+
+                // Subsolo
+                ctx.fillStyle = theme.dirtColor;
+                ctx.fillRect(0, cricket.groundY + 12, GAME_WIDTH, GAME_HEIGHT - cricket.groundY - 12);
+            }
+        };
+
+        // --- SISTEMA DE COLISÃO E REGRAS ---
+        function checkCollisions() {
+            for (let obs of obstacles) {
+                const pad = 6;
+                if (
+                    cricket.x + pad < obs.x + obs.width &&
+                    cricket.x + cricket.width - pad > obs.x &&
+                    cricket.y + pad < obs.y + obs.height &&
+                    cricket.y + cricket.height - pad > obs.y
+                ) {
+                    gameOver(false);
+                    return;
+                }
+            }
+
+            for (let col of collectibles) {
+                if (!col.collected &&
+                    cricket.x < col.x + col.width &&
+                    cricket.x + cricket.width > col.x &&
+                    cricket.y < col.y + col.height &&
+                    cricket.y + cricket.height > col.y
+                ) {
+                    col.collected = true;
+                    score += 50;
+                    document.getElementById('scoreText').textContent = score;
+                    sounds.playCoin();
+                }
+            }
+        }
+
+        function gameLoop() {
+            if (!isRunning) return;
+
+            frameCount++;
+            
+            if (frameCount % 6 === 0) {
+                distanceMeters++;
+                const theme = THEMES[currentThemeKey];
+                document.getElementById('progressText').textContent = `${distanceMeters}/${theme.targetDistance}m`;
+                
+                if (distanceMeters >= theme.targetDistance) {
+                    gameOver(true);
+                    return;
+                }
+            }
+
+            if (frameCount % 300 === 0) speed += 0.8;
+
+            if (frameCount % Math.max(70, Math.floor(130 - speed * 4)) === 0) {
+                obstacles.push(new Obstacle(currentThemeKey));
+            }
+
+            if (frameCount % 160 === 0 && Math.random() < 0.7) {
+                collectibles.push(new Collectible());
+            }
+
+            background.update();
+            cricket.update();
+            obstacles.forEach(o => o.update());
+            collectibles.forEach(c => c.update());
+
+            obstacles = obstacles.filter(o => o.x + o.width > -40);
+            collectibles = collectibles.filter(c => c.x + c.width > -40);
+
+            checkCollisions();
+
+            ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            background.draw(ctx);
+            collectibles.forEach(c => c.draw(ctx));
+            obstacles.forEach(o => o.draw(ctx));
+            cricket.draw(ctx);
+
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        // --- INICIALIZAÇÃO DE FASES E FLUXO ---
+        function selectTheme(themeKey) {
+            currentThemeKey = themeKey;
+            const theme = THEMES[themeKey];
+            document.getElementById('hudThemeIcon').textContent = theme.icon;
+            document.getElementById('hudThemeName').textContent = `Fase: ${theme.name}`;
+            renderThemeSelector();
+        }
+
+        function renderThemeSelector() {
+            const container = document.getElementById('themeSelectorContainer');
+            container.innerHTML = '';
+            
+            Object.keys(THEMES).forEach(key => {
+                const t = THEMES[key];
+                const isSelected = key === currentThemeKey;
+                const btn = document.createElement('button');
+                btn.className = `p-2 rounded-xl border text-left flex items-center gap-2 transition ${
+                    isSelected 
+                    ? 'bg-emerald-600/40 border-emerald-400 text-white font-bold ring-2 ring-emerald-500/50' 
+                    : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700/80'
+                }`;
+                btn.onclick = () => selectTheme(key);
+                btn.innerHTML = `
+                    <span class="text-xl sm:text-2xl">${t.icon}</span>
+                    <div class="overflow-hidden">
+                        <div class="text-[11px] font-bold leading-tight truncate">${t.name}</div>
+                        <div class="text-[10px] text-slate-400">Meta: ${t.targetDistance}m</div>
+                    </div>
+                `;
+                container.appendChild(btn);
+            });
+        }
+
+        function startGame() {
+            sounds.init();
+            isRunning = true;
+            score = 0;
+            distanceMeters = 0;
+            speed = 5.5;
+            frameCount = 0;
+            obstacles = [];
+            collectibles = [];
+            
+            cricket.reset();
+            const theme = THEMES[currentThemeKey];
+            document.getElementById('scoreText').textContent = '0';
+            document.getElementById('progressText').textContent = `0/${theme.targetDistance}m`;
+            document.getElementById('startOverlay').classList.add('opacity-0', 'pointer-events-none');
+            document.getElementById('mobileJumpHint').classList.remove('opacity-0');
+
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            gameLoop();
+        }
+
+        function gameOver(isWin) {
+            isRunning = false;
+            if (isWin) sounds.playWin(); else sounds.playHit();
+            showDirectorProposal(isWin);
+        }
+
+        // --- EXIBIÇÃO DA PROPOSTA OFICIAL ---
+        function showDirectorProposal(isWin) {
+            const theme = THEMES[currentThemeKey];
+            
+            document.getElementById('proposalHeaderIcon').textContent = theme.icon;
+            document.getElementById('proposalTitle').textContent = theme.name;
+            document.getElementById('proposalSubtitle').textContent = `"${theme.quote}"`;
+            
+            const stamp = document.getElementById('proposalStamp');
+            if (isWin) {
+                stamp.textContent = "PROPOSTA REGISTRADA";
+                stamp.className = "stamp-approved px-3 py-1 rounded-lg text-center font-black uppercase text-xs tracking-widest";
+            } else {
+                stamp.textContent = "PROPOSTA EM CONSTRUÇÃO";
+                stamp.className = "stamp-pending px-3 py-1 rounded-lg text-center font-black uppercase text-xs tracking-widest";
+            }
+
+            const listElem = document.getElementById('proposalCommitmentsList');
+            listElem.innerHTML = '';
+            theme.commitments.forEach((item, index) => {
+                const li = document.createElement('li');
+                li.className = "flex items-start gap-2 bg-amber-50/80 p-2 rounded-lg border border-amber-200/60";
+                li.innerHTML = `
+                    <span class="text-emerald-700 font-bold text-xs mt-0.5">•</span>
+                    <span class="leading-relaxed">${item}</span>
+                `;
+                listElem.appendChild(li);
+            });
+
+            document.getElementById('proposalModal').classList.remove('hidden');
+        }
+
+        // Controles Globais de Pulo
+        function triggerJump(e) {
+            if (e) e.preventDefault();
+            if (isRunning) cricket.jump();
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp') triggerJump(e);
+        });
+
+        gameArea.addEventListener('mousedown', (e) => {
+            if (e.target.closest('#startOverlay')) return;
+            triggerJump(e);
+        });
+
+        gameArea.addEventListener('touchstart', (e) => {
+            if (e.target.closest('#startOverlay')) return;
+            triggerJump(e);
+        }, { passive: false });
+
+        document.getElementById('btnStart').addEventListener('click', startGame);
+        document.getElementById('btnPlayAgain').addEventListener('click', () => {
+            document.getElementById('proposalModal').classList.add('hidden');
+            startGame();
+        });
+
+        document.getElementById('btnNextLevel').addEventListener('click', () => {
+            document.getElementById('proposalModal').classList.add('hidden');
+            const keys = Object.keys(THEMES);
+            const currentIndex = keys.indexOf(currentThemeKey);
+            const nextKey = keys[(currentIndex + 1) % keys.length];
+            selectTheme(nextKey);
+            startGame();
+        });
+
+        document.getElementById('btnCloseModal').addEventListener('click', () => {
+            document.getElementById('proposalModal').classList.add('hidden');
+            document.getElementById('startOverlay').classList.remove('opacity-0', 'pointer-events-none');
+        });
+
+        document.getElementById('btnOpenProposalDirect').addEventListener('click', () => {
+            showDirectorProposal(true);
+        });
+
+        document.getElementById('btnOpenMenuOverlay').addEventListener('click', () => {
+            isRunning = false;
+            document.getElementById('startOverlay').classList.remove('opacity-0', 'pointer-events-none');
+        });
+
+        // Setup Inicial ao carregar a página
+        renderThemeSelector();
+        selectTheme('t5');
+        background.draw(ctx);
+        cricket.draw(ctx);
+    </script>
+</body>
+</html>
